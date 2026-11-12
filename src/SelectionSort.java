@@ -27,8 +27,6 @@ public class SelectionSort implements SortAlgorithm {
     @Override
     public String getName() { return "Selection Sort"; }
 
-    @Override
-    public String getDay() { return "Day 1"; }
 
     @Override
     public void sort(SortArray arr) {

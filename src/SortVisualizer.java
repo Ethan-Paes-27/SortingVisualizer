@@ -21,16 +21,62 @@ import java.util.Random;
  */
 public class SortVisualizer extends JFrame {
 
-    /** The algorithms in the menu. Students write the code inside each of these classes. */
-    private static SortAlgorithm[] algorithms() {
+    /** The main algorithms, always shown first and in this order. */
+    private static SortAlgorithm[] builtInAlgorithms() {
         return new SortAlgorithm[] {
-            new SelectionSort(),
-            new InsertionSort(),
-            new ShellSort(),
-            new MergeSort(),
-            new HeapSort(),
-            new QuickSort()
+                new SelectionSort(),
+                new InsertionSort(),
+                new ShellSort(),
+                new MergeSort(),
+                new HeapSort(),
+                new QuickSort(),
+                new MySort()          // the "extra sort" slot for students who finish early
         };
+    }
+
+    /**
+     * Builds the drop-down list: the built-in sorts, then ANY other class in the
+     * project folder that implements SortAlgorithm (found automatically).
+     * So to add a new sort, a student just copies MySort.java, renames the file
+     * and class, and recompiles - no other file needs to change.
+     */
+    static List<SortAlgorithm> loadAlgorithms() {
+        List<SortAlgorithm> list = new ArrayList<SortAlgorithm>();
+        java.util.Set<String> known = new java.util.HashSet<String>();
+        for (SortAlgorithm a : builtInAlgorithms()) {
+            list.add(a);
+            known.add(a.getClass().getName());
+        }
+
+        List<SortAlgorithm> extras = new ArrayList<SortAlgorithm>();
+        try {
+            java.net.URL where = SortVisualizer.class.getProtectionDomain().getCodeSource().getLocation();
+            java.io.File dir = new java.io.File(where.toURI());
+            String[] files = dir.isDirectory() ? dir.list() : null;   // (inside a .jar: built-ins only)
+            if (files != null) {
+                for (String f : files) {
+                    if (!f.endsWith(".class") || f.contains("$")) continue;
+                    String name = f.substring(0, f.length() - 6);
+                    if (known.contains(name)) continue;
+                    try {
+                        Class<?> c = Class.forName(name);
+                        if (SortAlgorithm.class.isAssignableFrom(c) && !c.isInterface()
+                                && !java.lang.reflect.Modifier.isAbstract(c.getModifiers())) {
+                            extras.add((SortAlgorithm) c.getDeclaredConstructor().newInstance());
+                        }
+                    } catch (Throwable ignored) {
+                        // not a sort, or it has no plain constructor: skip it
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            // couldn't look at the folder: just use the built-ins
+        }
+        Collections.sort(extras, new java.util.Comparator<SortAlgorithm>() {
+            public int compare(SortAlgorithm x, SortAlgorithm y) { return x.getName().compareToIgnoreCase(y.getName()); }
+        });
+        list.addAll(extras);
+        return list;
     }
 
     private static final int MAX_ITEMS = 100;
@@ -56,7 +102,9 @@ public class SortVisualizer extends JFrame {
     private final JButton stepBtn = new JButton("Step  >");
     private final JButton endBtn = new JButton("End  >|");
     private final JSlider speedSlider = new JSlider(0, 100, 45);
-    private final JCheckBox soundBox = new JCheckBox("Sound", true);
+    private final JCheckBox soundBox = new JCheckBox("Sound (comparisons)", true);
+    private final JButton traceBtn = new JButton("Trace Table");
+    private final JButton stopSoundBtn = new JButton("Stop Sound");
 
     private final JLabel statsLabel = new JLabel(" ");
     private final JLabel messageLabel = new JLabel(" ");
@@ -78,12 +126,25 @@ public class SortVisualizer extends JFrame {
     private String lastGeneratedPattern = "";
     private int runCount = 0;
     private final Random rng = new Random();
+    private TraceWindow traceWindow;          // created the first time it's opened
+    private String traceAlgName = "";
+    private String traceSummary = "";
 
     public SortVisualizer() {
         super("Sorting Algorithm Visualizer");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        for (SortAlgorithm a : algorithms()) algoBox.addItem(new AlgoChoice(a));
+        List<SortAlgorithm> algs = loadAlgorithms();
+        java.util.Map<String, Integer> nameCount = new java.util.HashMap<String, Integer>();
+        for (SortAlgorithm a : algs) {
+            Integer c = nameCount.get(a.getName());
+            nameCount.put(a.getName(), c == null ? 1 : c + 1);
+        }
+        for (SortAlgorithm a : algs) {
+            // two classes with the same getName()? show the class name too so students can tell them apart
+            boolean dup = nameCount.get(a.getName()) > 1;
+            algoBox.addItem(new AlgoChoice(a, dup));
+        }
         ButtonGroup group = new ButtonGroup();
         group.add(numbersBtn);
         group.add(charsBtn);
@@ -114,6 +175,7 @@ public class SortVisualizer extends JFrame {
             soundBox.setSelected(false);
             soundBox.setEnabled(false);
             soundBox.setText("Sound (no audio device)");
+            stopSoundBtn.setEnabled(false);
         }
     }
 
@@ -168,6 +230,13 @@ public class SortVisualizer extends JFrame {
         controls.add(new JLabel("Fast"));
         controls.add(Box.createHorizontalStrut(20));
         controls.add(soundBox);
+        stopSoundBtn.setToolTipText("Silence all sound right now (the animation keeps going)");
+        stopSoundBtn.setForeground(new Color(180, 30, 30));
+        stopSoundBtn.setFont(stopSoundBtn.getFont().deriveFont(Font.BOLD));
+        controls.add(stopSoundBtn);
+        controls.add(Box.createHorizontalStrut(20));
+        traceBtn.setFont(traceBtn.getFont().deriveFont(Font.BOLD));
+        controls.add(traceBtn);
 
         statsLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
         statsLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -242,8 +311,21 @@ public class SortVisualizer extends JFrame {
         playBtn.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) { togglePlay(); }
         });
+        soundBox.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) { if (!soundBox.isSelected()) tones.stopAll(); }
+        });
+        stopSoundBtn.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) { tones.stopAll(); }
+        });
+        traceBtn.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) { openTraceWindow(); }
+        });
         speedSlider.addChangeListener(new javax.swing.event.ChangeListener() {
-            public void stateChanged(javax.swing.event.ChangeEvent e) { updateSpeed(); }
+            public void stateChanged(javax.swing.event.ChangeEvent e) {
+                updateSpeed();
+                // changing speed mid-animation can leave old notes queued: clear them
+                if (timer.isRunning()) tones.stopAll();
+            }
         });
     }
 
@@ -300,6 +382,9 @@ public class SortVisualizer extends JFrame {
             resultLabel.setForeground(Color.DARK_GRAY);
             resultLabel.setText("Press \"Run Sort\" to record "
                     + ((AlgoChoice) algoBox.getSelectedItem()).alg.getName() + " on this data.");
+            traceAlgName = ((AlgoChoice) algoBox.getSelectedItem()).alg.getName();
+            traceSummary = "Not run yet. Data: " + dataField.getText().trim();
+            updateTraceSteps();
             refresh();
         } catch (IllegalArgumentException ex) {
             resultLabel.setForeground(new Color(190, 40, 40));
@@ -422,6 +507,14 @@ public class SortVisualizer extends JFrame {
         runCount++;
         historyModel.addRow(new Object[] { runCount, alg.getName(), n, dataDesc,
                 r.comparisons, r.swaps, r.writes, verdict });
+
+        traceAlgName = alg.getName();
+        traceSummary = "Data (" + n + " items): " + dataField.getText().trim()
+                + "   |   Result: " + verdict + "   |   " + r.comparisons + " comparisons, "
+                + r.swaps + " swaps, " + r.writes + " writes"
+                + (r.error != null ? "   |   " + r.error : "")
+                + (r.stable != null ? "   |   Stable on this data: " + (r.stable ? "yes" : "no") : "");
+        updateTraceSteps();
         refresh();
     }
 
@@ -430,10 +523,10 @@ public class SortVisualizer extends JFrame {
     private void goTo(int newIndex, boolean withSound) {
         if (steps.isEmpty()) return;
         newIndex = Math.max(0, Math.min(steps.size() - 1, newIndex));
-        boolean moved = newIndex != index;
+        int oldIndex = index;
         index = newIndex;
         refresh();
-        if (withSound && moved) playSoundFor(steps.get(index));
+        if (withSound && newIndex != oldIndex) playSoundFor(oldIndex, newIndex);
     }
 
     private void togglePlay() {
@@ -446,9 +539,11 @@ public class SortVisualizer extends JFrame {
         }
     }
 
+    /** Stop playback AND silence any sound still waiting to be played. */
     private void pause() {
         if (timer != null && timer.isRunning()) timer.stop();
         playBtn.setText("Play");
+        if (tones != null) tones.stopAll();
     }
 
     private int stepsPerTick = 1;
@@ -471,22 +566,69 @@ public class SortVisualizer extends JFrame {
             return;
         }
         goTo(index + stepsPerTick, true);
-        if (index >= steps.size() - 1) pause();
+        if (index >= steps.size() - 1) {
+            // reached the end: stop the timer but don't cut off the final sweep
+            timer.stop();
+            playBtn.setText("Play");
+        }
     }
 
-    private void playSoundFor(Step s) {
+    /**
+     * Sound is played ONLY for comparisons. The two values being compared are
+     * played as two quick notes (left value first, then right value).
+     * When playback jumps several steps at once, the latest comparison in that
+     * jump is the one you hear.
+     */
+    private void playSoundFor(int oldIndex, int newIndex) {
         if (!soundBox.isSelected()) return;
-        if (s.type == Step.Type.DONE && finishedCorrectly) {
-            double[] f = new double[s.snapshot.length];
-            for (int k = 0; k < f.length; k++) f[k] = TonePlayer.frequencyFor(s.snapshot[k].key(), minKey, maxKey);
+        Step last = steps.get(newIndex);
+        if (last.type == Step.Type.DONE && finishedCorrectly && newIndex > oldIndex) {
+            double[] f = new double[last.snapshot.length];
+            for (int k = 0; k < f.length; k++) f[k] = TonePlayer.frequencyFor(last.snapshot[k].key(), minKey, maxKey);
+            tones.stopAll();   // drop any leftover comparison notes first
             tones.sweep(f, Math.max(15, 600 / f.length));
             return;
         }
-        if (s.soundKeys.length == 0) return;
-        double[] f = new double[s.soundKeys.length];
-        for (int k = 0; k < f.length; k++) f[k] = TonePlayer.frequencyFor(s.soundKeys[k], minKey, maxKey);
-        int ms = (int) Math.max(25, Math.min(150, timer.getDelay() * stepsPerTick * 0.8));
-        tones.play(f, ms);
+
+        Step compare = null;
+        if (newIndex > oldIndex) {
+            for (int k = newIndex; k > oldIndex; k--) {
+                if (steps.get(k).type == Step.Type.COMPARE) { compare = steps.get(k); break; }
+            }
+        } else if (last.type == Step.Type.COMPARE) {
+            compare = last;   // stepping backward onto a comparison
+        }
+        if (compare == null) return;   // swaps, writes and marks are silent
+
+        double[] f = new double[compare.soundKeys.length];
+        for (int k = 0; k < f.length; k++) f[k] = TonePlayer.frequencyFor(compare.soundKeys[k], minKey, maxKey);
+        boolean playing = timer.isRunning();
+        // Both notes must fit inside the time until the next tick, or sound piles up.
+        // (One tick may advance several steps, but only ONE comparison is played per tick.)
+        int total = playing ? (int) Math.max(30, Math.min(320, timer.getDelay() * 0.8)) : 320;
+        tones.playInOrder(f, total / f.length);
+    }
+
+    // ================================================================ trace table window
+
+    private void openTraceWindow() {
+        if (traceWindow == null) {
+            traceWindow = new TraceWindow(new TraceWindow.JumpListener() {
+                public void jumpTo(int stepIndex) { pause(); goTo(stepIndex, true); }
+            });
+            Point p = getLocation();
+            traceWindow.setLocation(p.x + 40, p.y + getHeight() / 3);
+        }
+        traceWindow.setSteps(steps, traceAlgName, traceSummary);
+        traceWindow.setCurrent(index);
+        traceWindow.setVisible(true);
+        traceWindow.toFront();
+    }
+
+    private void updateTraceSteps() {
+        if (traceWindow != null && traceWindow.isVisible()) {
+            traceWindow.setSteps(steps, traceAlgName, traceSummary);
+        }
     }
 
     private void refresh() {
@@ -500,6 +642,7 @@ public class SortVisualizer extends JFrame {
                 + "        Swaps: " + s.swaps
                 + "        Writes: " + s.writes);
         messageLabel.setText(s.message);
+        if (traceWindow != null && traceWindow.isVisible()) traceWindow.setCurrent(index);
 
         startBtn.setEnabled(index > 0);
         backBtn.setEnabled(index > 0);
@@ -534,8 +677,11 @@ public class SortVisualizer extends JFrame {
 
     private static final class AlgoChoice {
         final SortAlgorithm alg;
-        AlgoChoice(SortAlgorithm alg) { this.alg = alg; }
-        @Override public String toString() { return alg.getDay() + "  -  " + alg.getName(); }
+        final boolean showClass;
+        AlgoChoice(SortAlgorithm alg, boolean showClass) { this.alg = alg; this.showClass = showClass; }
+        @Override public String toString() {
+            return showClass ? alg.getName() + "  (" + alg.getClass().getSimpleName() + ".java)" : alg.getName();
+        }
     }
 
     public static void main(String[] args) {

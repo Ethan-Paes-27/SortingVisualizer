@@ -37,8 +37,6 @@ public class HeapSort implements SortAlgorithm {
     @Override
     public String getName() { return "Heapsort"; }
 
-    @Override
-    public String getDay() { return "Day 4"; }
 
     @Override
     public void sort(SortArray arr) {

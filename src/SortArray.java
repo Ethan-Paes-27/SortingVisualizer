@@ -20,6 +20,9 @@ import java.util.List;
  *   arr.get(i)              look at / pick up the item at i        (free - not counted)
  *   arr.set(i, item)        put an item into position i            (counts as a WRITE)
  *
+ *   arr.mark("i=" + i)      OPTIONAL: adds a labelled row to the Trace Table (not counted).
+ *                           Call it at the end of each pass to get a one-row-per-pass table.
+ *
  *   You can also compare items you are "holding" in a variable or temp array:
  *   arr.less(item, j)   arr.less(i, item)   arr.less(itemA, itemB)
  *   arr.compare(item, j)   arr.compare(i, item)   arr.compare(itemA, itemB)
@@ -84,6 +87,16 @@ public class SortArray {
         record(Step.Type.SWAP, i, j,
                 "Swap a[" + i + "]=" + x + " with a[" + j + "]=" + y,
                 new double[] { x.key(), y.key() });
+    }
+
+    // ------------------------------------------------------------------ trace table marker
+
+    /**
+     * OPTIONAL: add a labelled row to the Trace Table showing the list right now.
+     * Not counted as a comparison, swap or write. Example: arr.mark("i=" + i);
+     */
+    public void mark(String label) {
+        record(Step.Type.MARK, -1, -1, "Mark: " + label, new double[0]);
     }
 
     // ------------------------------------------------------------------ comparing by index

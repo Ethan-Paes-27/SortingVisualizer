@@ -30,12 +30,11 @@ public class InsertionSort implements SortAlgorithm {
     @Override
     public String getName() { return "Insertion Sort"; }
 
-    @Override
-    public String getDay() { return "Day 1"; }
+
 
     @Override
     public void sort(SortArray arr) {
-        // TODO: write insertion sort here
 
     }
+
 }

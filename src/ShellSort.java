@@ -32,9 +32,6 @@ public class ShellSort implements SortAlgorithm {
     public String getName() { return "Shell Sort"; }
 
     @Override
-    public String getDay() { return "Day 2"; }
-
-    @Override
     public void sort(SortArray arr) {
         // TODO: write shell sort here
 

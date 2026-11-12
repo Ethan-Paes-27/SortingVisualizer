@@ -38,8 +38,6 @@ public class MergeSort implements SortAlgorithm {
     @Override
     public String getName() { return "Merge Sort"; }
 
-    @Override
-    public String getDay() { return "Day 3"; }
 
     @Override
     public void sort(SortArray arr) {

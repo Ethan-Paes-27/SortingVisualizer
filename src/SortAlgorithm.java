@@ -8,9 +8,6 @@ public interface SortAlgorithm {
     /** The name shown in the drop-down menu, e.g. "Selection Sort". */
     String getName();
 
-    /** Which day of the unit this sort belongs to, e.g. "Day 1". */
-    String getDay();
-
     /**
      * Sort the list into ascending order (smallest first).
      * Use ONLY arr's methods to compare and move items, so everything is counted.

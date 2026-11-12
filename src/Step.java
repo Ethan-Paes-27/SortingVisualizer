@@ -6,7 +6,7 @@
  */
 public final class Step {
 
-    public enum Type { START, COMPARE, SWAP, WRITE, DONE }
+    public enum Type { START, COMPARE, SWAP, WRITE, MARK, DONE }
 
     final Type type;
     final int i;            // first highlighted index (-1 = none)

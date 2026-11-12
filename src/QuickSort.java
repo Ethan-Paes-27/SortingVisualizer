@@ -27,8 +27,6 @@ public class QuickSort implements SortAlgorithm {
     @Override
     public String getName() { return "Quicksort"; }
 
-    @Override
-    public String getDay() { return "Bonus"; }
 
     @Override
     public void sort(SortArray arr) {
