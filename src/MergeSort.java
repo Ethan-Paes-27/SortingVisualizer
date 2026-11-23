@@ -45,7 +45,15 @@ public class MergeSort implements SortAlgorithm {
     }
 
     private void mergeSort(SortArray arr, Item[] temp, int lo, int hi) {
+        if (lo >= hi) {
+            return;
+        }
 
+        int mid = lo + (hi - lo) / 2;
+
+        mergeSort(arr, temp, lo, mid);
+        mergeSort(arr, temp, mid+1, hi);
+        merge(arr, temp, lo, mid, hi);
     }
 
     private void merge(SortArray arr, Item[] temp, int lo, int mid, int hi) {
@@ -53,16 +61,25 @@ public class MergeSort implements SortAlgorithm {
             temp[i] = arr.get(i);
         }
 
+        int arrWrite = lo;
         int point1 = lo;
         int point2 = mid+1;
 
         while (point1 <= mid && point2 <= hi) {
             if (arr.less(temp[point2], temp[point1])) {
-                arr.set(point2++, arr.get(point2));
+                arr.set(arrWrite++, temp[point2++]);
             }
             else {
-                arr.set(point1++, arr.get(point1));
+                arr.set(arrWrite++, temp[point1++]);
             }
+        }
+
+        while (point1 <= mid) {
+            arr.set(arrWrite++, temp[point1++]);
+        }
+
+        while (point2 <= hi) {
+            arr.set(arrWrite++, temp[point2++]);
         }
 
     }
