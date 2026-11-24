@@ -33,7 +33,7 @@
  *   3. Does merge sort care whether the data starts sorted, reversed or random?
  *   4. Is your merge sort stable? (Hint: when two items are EQUAL, which one goes first?)
  */
-public class MergeSort implements SortAlgorithm {
+public class BottomMergeSort implements SortAlgorithm {
 
     @Override
     public String getName() { return "Merge Sort"; }
@@ -41,19 +41,19 @@ public class MergeSort implements SortAlgorithm {
 
     @Override
     public void sort(SortArray arr) {
-        mergeSort(arr, new Item[arr.size()], 0, arr.size() - 1);
+        mergeSort(arr, new Item[arr.size()]);
     }
 
-    private void mergeSort(SortArray arr, Item[] temp, int lo, int hi) {
-        if (lo >= hi) {
-            return;
+    private void mergeSort(SortArray arr, Item[] temp) {
+        int n = arr.size();
+
+        for (int size = 1; size < n; size *= 2) {
+            for (int lo = 0; lo < n - size; lo+= 2*size) {
+                int mid = lo+size-1;
+                int hi = Math.min(lo + 2 * size - 1, n - 1);
+                    merge(arr, temp, lo, mid, hi);
+            }
         }
-
-        int mid = lo + (hi - lo) / 2;
-
-        mergeSort(arr, temp, lo, mid);
-        mergeSort(arr, temp, mid+1, hi);
-        merge(arr, temp, lo, mid, hi);
     }
 
     private void merge(SortArray arr, Item[] temp, int lo, int mid, int hi) {

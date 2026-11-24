@@ -27,7 +27,8 @@ public class SortVisualizer extends JFrame {
                 new SelectionSort(),
                 new InsertionSort(),
                 new ShellSort(),
-                new MergeSort(),
+                new TopMergeSort(),
+                new BottomMergeSort(),
                 new HeapSort(),
                 new QuickSort(),
                 new MySort()          // the "extra sort" slot for students who finish early
